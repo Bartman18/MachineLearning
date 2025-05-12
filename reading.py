@@ -1,25 +1,106 @@
 import pandas as pd
 import numpy as np
+from sklearn.base import is_classifier, is_regressor
 from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, r2_score
+from sklearn.model_selection import train_test_split, RepeatedKFold
+from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.svm import SVC, SVR
 
 
-data = pd.read_excel('excel1.xlsx')  # już jako DataFrame
+def reading_data():
+    data = pd.read_excel('excel1.xlsx')
 
-selector = SelectKBest(score_func=f_classif, k=2)
+    X = data.iloc[:, :-1].to_numpy()
+    y = data.iloc[:, -1].to_numpy()
 
-X = data.iloc[:, :-1]
-y = data.iloc[:, -1]
+    return X, y
 
 
+def materiality_testing(X, y):
+    selector = SelectKBest(score_func=f_classif, k=2)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train_selected = selector.fit_transform(X_train, y_train)
+    X_test_selected = selector.transform(X_test)
 
-X_train_selected = selector.fit_transform(X_train, y_train)
-X_test_selected = selector.transform(X_test)
+    selected_features = X.columns[selector.get_support()]
+    f_scores = selector.scores_[selector.get_support()]
 
-selected_features = X.columns[selector.get_support()]
-f_scores = selector.scores_[selector.get_support()]
+    print(f"Selected Features: {selected_features}")
+    print(f"F-Scores: {f_scores}")
 
-print(f"Selected Features: {selected_features}")
-print(f"F-Scores: {f_scores}")
+
+def feature_to_price(X, y):
+    pass
+
+
+def add_features(X, y):
+    X_new = X.copy()
+    ram = X[:, 13]
+    clock_speed = X[:, 2]
+    n_cores = X[:, 9]
+
+    ram_clock = (ram / clock_speed).reshape(-1, 1)
+    random_clock = (n_cores ** 2).reshape(-1, 1)
+
+    X_new = np.hstack((X_new, ram_clock, random_clock))
+    return X_new, y
+
+
+def model_selection(X, y):
+    models = [
+        SVC(),
+        SVR(),
+        KNeighborsClassifier(),
+        GaussianNB(),
+        MLPClassifier(max_iter=1000)
+    ]
+
+    results = {}
+
+    rkf = RepeatedKFold(n_splits=2, n_repeats=5, random_state=42)
+
+    for model in models:
+        scores = []
+
+        for train_index, test_index in rkf.split(X, y):
+            X_train, X_test = X[train_index], X[test_index]
+            y_train, y_test = y[train_index], y[test_index]
+
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+
+            if is_classifier(model):
+                score = accuracy_score(y_test, y_pred)
+            elif is_regressor(model):
+                score = r2_score(y_test, y_pred)
+            else:
+                continue
+
+            scores.append(score)
+
+        results[model.__class__.__name__] = np.mean(scores)
+
+    print(results)
+
+
+def best_ratio(X, y):
+    rkf = RepeatedKFold(n_splits=2, n_repeats=5, random_state=42)
+
+    model = SVC()
+    for train_index, test_index in rkf.split(X, y):
+        X_train, X_test = X[train_index], X[test_index]
+        y_train, y_test = y[train_index], y[test_index]
+
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        errors = np.where(y_pred != y_test)[0]
+        global_error_indices = test_index[errors]
+
+        for idx in global_error_indices:
+            print("Błąd w wierszu:", idx, "prawidłowa:", y[idx], "przewidziana:",
+                  model.predict(X[idx].reshape(1, -1))[0])
