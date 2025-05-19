@@ -18,10 +18,16 @@ def reading_data():
     X = data.iloc[:, :-1].to_numpy()
     y = data.iloc[:, -1].to_numpy()
 
+
     return X, y
 
 
+
 def materiality_testing(X, y):
+
+    X = pd.DataFrame(X)
+    y = pd.DataFrame(y)
+
     selector = SelectKBest(score_func=f_classif, k=2)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -35,8 +41,22 @@ def materiality_testing(X, y):
     print(f"F-Scores: {f_scores}")
 
 
-def feature_to_price(X, y):
-   pass
+# def feature_to_price(X, y):
+#     for i in range(X.shape[1]):
+#
+#         fig, ax = plt.subplots()
+#
+#
+#         feature_data = X[:, i]
+#
+#
+#         ax.bar(feature_data, y)
+#         ax.set_xlabel(f'Feature {i + 1}')
+#         ax.set_ylabel('Price')
+#         ax.set_title(f'Feature {i + 1} vs Price')
+#         plt.tight_layout()
+#         plt.savefig(f'({i})')
+
 
 def add_features(X, y):
     X_new = X.copy()
@@ -94,7 +114,7 @@ def model_selection(X, y):
 
 def best_ratio(X, y):
     rkf = RepeatedKFold(n_splits=2, n_repeats=5, random_state=42)
-    model = SVC()
+    model = GaussianNB()
 
     result = {}
 
