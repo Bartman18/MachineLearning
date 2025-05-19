@@ -2,12 +2,14 @@ import pandas as pd
 import numpy as np
 from sklearn.base import is_classifier, is_regressor
 from sklearn.feature_selection import SelectKBest, f_classif
-from sklearn.metrics import accuracy_score, r2_score
+from sklearn.metrics import accuracy_score, r2_score, confusion_matrix
 from sklearn.model_selection import train_test_split, RepeatedKFold
 from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, SVR
+from sklearn.tree import DecisionTreeClassifier
+import matplotlib.pyplot as plt
 
 
 def reading_data():
@@ -34,8 +36,7 @@ def materiality_testing(X, y):
 
 
 def feature_to_price(X, y):
-    pass
-
+   pass
 
 def add_features(X, y):
     X_new = X.copy()
@@ -53,10 +54,11 @@ def add_features(X, y):
 def model_selection(X, y):
     models = [
         SVC(),
-        SVR(),
         KNeighborsClassifier(),
         GaussianNB(),
-        MLPClassifier(max_iter=1000)
+        MLPClassifier(max_iter=1000),
+        SVR(),
+        DecisionTreeClassifier(),
     ]
 
     results = {}
@@ -70,9 +72,10 @@ def model_selection(X, y):
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
+
+
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
-
             if is_classifier(model):
                 score = accuracy_score(y_test, y_pred)
             elif is_regressor(model):
@@ -84,13 +87,17 @@ def model_selection(X, y):
 
         results[model.__class__.__name__] = np.mean(scores)
 
-    print(results)
+
+    for x,y in results.items():
+        print(f'{x}: {y}')
 
 
 def best_ratio(X, y):
     rkf = RepeatedKFold(n_splits=2, n_repeats=5, random_state=42)
-
     model = SVC()
+
+    result = {}
+
     for train_index, test_index in rkf.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
@@ -101,6 +108,22 @@ def best_ratio(X, y):
         errors = np.where(y_pred != y_test)[0]
         global_error_indices = test_index[errors]
 
+        max_error = 0
+
+
         for idx in global_error_indices:
-            print("Błąd w wierszu:", idx, "prawidłowa:", y[idx], "przewidziana:",
-                  model.predict(X[idx].reshape(1, -1))[0])
+            pred = model.predict(X[idx].reshape(1, -1))[0]
+            true = y[idx]
+            error = (true - pred)
+
+            if error > max_error:
+                result.clear()
+                result[int(idx)] = (int(pred), int(true))
+                max_error = error
+            elif error == max_error:
+                result[int(idx)] = (int(pred), int(true))
+
+
+
+    for x,y in result.items():
+        print(f'Wiersz {x}: Prawidłowe {y[0]}, Rozponane {y[1]}')
