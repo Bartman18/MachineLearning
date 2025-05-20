@@ -58,17 +58,47 @@ def materiality_testing(X, y):
 #         plt.savefig(f'({i})')
 
 
-def add_features(X, y):
-    X_new = X.copy()
-    ram = X[:, 13]
-    clock_speed = X[:, 2]
-    n_cores = X[:, 9]
+def featuerse_select(X, y):
+    n_features = X.shape[1]
 
-    ram_clock = (ram / clock_speed).reshape(-1, 1)
-    random_clock = (n_cores ** 2).reshape(-1, 1)
 
-    X_new = np.hstack((X_new, ram_clock, random_clock))
-    return X_new, y
+    models = [
+        SVC(),
+        KNeighborsClassifier(),
+        GaussianNB(),
+        MLPClassifier(),
+        DecisionTreeClassifier(),
+    ]
+
+    for model in models:
+        result = np.zeros((21, 10))
+        rkf = RepeatedKFold(n_splits=2, n_repeats=5)
+        for j in range(1, n_features + 1):
+            selector = SelectKBest(score_func=f_classif, k=j)
+
+            X_new = selector.fit_transform(X, y)
+
+
+
+
+            for i, (train_index, test_index) in enumerate(rkf.split(X_new, y)):
+                X_train, X_test = X[train_index], X[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+                clf = model
+                clf.fit(X_train, y_train)
+                y_pred = clf.predict(X_test)
+                scores = accuracy_score(y_pred, y_test)
+                result[j, i] = scores
+
+
+
+        z = [i for i in range(1,len(result)+1) ]
+        plt.figure(figsize=(8, 5))
+        plt.plot(z, np.mean(result,axis=1))
+        plt.grid(True)
+        plt.xticks(z)
+        plt.savefig(f'{model}_v2.png')
+
 
 
 def model_selection(X, y):
@@ -147,3 +177,6 @@ def best_ratio(X, y):
 
     for x,y in result.items():
         print(f'Wiersz {x}: Prawidłowe {y[0]}, Rozponane {y[1]}')
+
+
+
