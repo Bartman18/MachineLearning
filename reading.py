@@ -10,6 +10,7 @@ from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier
 import matplotlib.pyplot as plt
+from sklearn.base import clone
 
 
 def reading_data():
@@ -18,13 +19,10 @@ def reading_data():
     X = data.iloc[:, :-1].to_numpy()
     y = data.iloc[:, -1].to_numpy()
 
-
     return X, y
 
 
-
 def materiality_testing(X, y):
-
     X = pd.DataFrame(X)
     y = pd.DataFrame(y)
 
@@ -58,9 +56,8 @@ def materiality_testing(X, y):
 #         plt.savefig(f'({i})')
 
 
-def featuerse_select(X, y):
+def features_select(X, y):
     n_features = X.shape[1]
-
 
     models = [
         SVC(),
@@ -71,34 +68,28 @@ def featuerse_select(X, y):
     ]
 
     for model in models:
-        result = np.zeros((21, 10))
+        result = np.zeros((n_features, 10))
         rkf = RepeatedKFold(n_splits=2, n_repeats=5)
         for j in range(1, n_features + 1):
             selector = SelectKBest(score_func=f_classif, k=j)
-
             X_new = selector.fit_transform(X, y)
 
-
-
-
             for i, (train_index, test_index) in enumerate(rkf.split(X_new, y)):
-                X_train, X_test = X[train_index], X[test_index]
+                X_train, X_test = X_new[train_index], X_new[test_index]
                 y_train, y_test = y[train_index], y[test_index]
+
                 clf = model
                 clf.fit(X_train, y_train)
                 y_pred = clf.predict(X_test)
                 scores = accuracy_score(y_pred, y_test)
-                result[j, i] = scores
+                result[j - 1, i] = scores
 
-
-
-        z = [i for i in range(1,len(result)+1) ]
+        z = list(range(1, n_features + 1))
         plt.figure(figsize=(8, 5))
-        plt.plot(z, np.mean(result,axis=1))
+        plt.plot(z, np.mean(result, axis=1), marker='o')
         plt.grid(True)
         plt.xticks(z)
         plt.savefig(f'{model}_v2.png')
-
 
 
 def model_selection(X, y):
@@ -122,8 +113,6 @@ def model_selection(X, y):
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
 
-
-
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             if is_classifier(model):
@@ -137,8 +126,7 @@ def model_selection(X, y):
 
         results[model.__class__.__name__] = np.mean(scores)
 
-
-    for x,y in results.items():
+    for x, y in results.items():
         print(f'{x}: {y}')
 
 
@@ -160,7 +148,6 @@ def best_ratio(X, y):
 
         max_error = 0
 
-
         for idx in global_error_indices:
             pred = model.predict(X[idx].reshape(1, -1))[0]
             true = y[idx]
@@ -173,10 +160,5 @@ def best_ratio(X, y):
             elif error == max_error:
                 result[int(idx)] = (int(pred), int(true))
 
-
-
-    for x,y in result.items():
+    for x, y in result.items():
         print(f'Wiersz {x}: Prawidłowe {y[0]}, Rozponane {y[1]}')
-
-
-
